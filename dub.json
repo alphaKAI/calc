@@ -1,0 +1,12 @@
+{
+	"name": "calc",
+	"authors": [
+		"Akihiro Shoji"
+	],
+	"dependencies": {
+		"pegged": "~>0.4.2"
+	},
+	"description": "A minimal command line calculator.",
+	"copyright": "Copyright (c) 2018, Akihiro Shoji",
+	"license": "MIT"
+}

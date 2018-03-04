@@ -90,7 +90,7 @@ StackValue[] buildCode(ParseTree p) {
         }
       }
       if (!found) {
-        throw new Error("Undefined identifier was given : " ~ ident);
+        throw new Error("Undefined identifier given : " ~ ident);
       }
       return cast(StackValue[])[funcs[ident]];
     case "Calc.Func":

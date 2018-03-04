@@ -6,7 +6,7 @@ import std.stdio,
 
 mixin(grammar(`
 Calc:
-  Term < Factor (Add / Sub)*
+  Term < VariableAssign / Factor (Add / Sub)*
   Add < "+" Factor
   Sub < "-" Factor
   Factor < Primary (Mul / Div / Mod)*
@@ -14,24 +14,26 @@ Calc:
   Div < "/" Factor
   Mod < "%" Factor
 
-  Primary < Parens / Func / PowerExpr / Number
+  Primary < Parens / Func / PowerExpr / Variable / Number
 
   Parens < :"(" Term :")"
 
   Func < Identifier ParameterList
   ParameterList < "()" / :"(" Parameter ("," Parameter)* :")"
   Parameter < Primary
-  Identifier <~ [a-zA-Z_] [a-zA-Z0-9_]*
+  Variable < Identifier
+  VariableAssign < Variable "=" Term
 
   PowerExpr < Number "^" Integer
 
+  Identifier <~ [a-zA-Z_] [a-zA-Z0-9_]*
   Number < Floating / Integer
   Integer <~ Sign? digit+
   Floating <~ Sign? [0-9]+ "." [0-9]+
   Sign <- "-" / "+"
 `));
 
-StackValue[string] funcs;
+StackValue[string] idents;
 enum Identifiers = [
   "sqrt" : function Func ()  { return sqrt; },
   "square" : function Func () { return square; } 
@@ -39,8 +41,19 @@ enum Identifiers = [
 
 static this() {
   foreach (key; Identifiers.keys) {
-    funcs[key] = Identifiers[key]();
+    idents[key] = Identifiers[key]();
   }
+}
+
+void setVariable(string name, StackValue value) {
+  idents[name] = value;
+}
+
+StackValue getVariable(string name) {
+  if (name !in idents) {
+    throw new Error("no such a variable/func - " ~ name);
+  }
+  return idents[name];
 }
 
 StackValue[] buildCode(ParseTree p) {
@@ -83,7 +96,7 @@ StackValue[] buildCode(ParseTree p) {
     case "Calc.Identifier":
       string ident = p.matches[0];
       bool found;
-      foreach (key; Identifiers.keys) {
+      foreach (key; idents.keys) {
         if (key == ident) {
           found = true;
           break;
@@ -92,7 +105,7 @@ StackValue[] buildCode(ParseTree p) {
       if (!found) {
         throw new Error("Undefined identifier given : " ~ ident);
       }
-      return cast(StackValue[])[funcs[ident]];
+      return cast(StackValue[])[idents[ident]];
     case "Calc.Func":
       auto func = buildCode(p.children[0]);
       auto args  = buildCode(p.children[1]);
@@ -101,5 +114,12 @@ StackValue[] buildCode(ParseTree p) {
       auto n = buildCode(p.children[0]);
       auto m = buildCode(p.children[1]);
       return n ~ m ~ cast(StackValue[])[ipower];
+    case "Calc.Variable":
+      return [variable(p.matches[0])];
+    case "Calc.VariableAssign":
+      string name = p.matches[0];
+      StackValue[] value = buildCode(p.children[1]);
+      Integer len = integer(value.length.to!long);
+      return vassign ~ cast(StackValue[])[variable(name)] ~ len ~ value;
   }
 }

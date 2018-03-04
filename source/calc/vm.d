@@ -53,6 +53,12 @@ class Floating : Number {
   this (double value) { this.value = value; }
   override string toString() { return "<Value-Floating> %f".format(this.value); }
 }
+class Variable : StackValue {
+  string value;
+  this (string value) { this.value = value; }
+  override string toString() { return "<Value-Variable> %s".format(this.value); }
+}
+class VAssign : StackValue { override string toString() { return "<Operator> VAssign"; } }
 class BiPush : StackValue { override string toString() { return "<Operator> BiPush"; } }
 class IAdd   : StackValue { override string toString() { return "<Operator> IAdd"; } }
 class ISub   : StackValue { override string toString() { return "<Operator> ISub"; } }
@@ -299,6 +305,21 @@ Frame execute(Frame frame) {
       double v = (cast(Floating)n).value;
       operandStack.push(floating(v^^p));
     }
+  } else if ((cast(Variable)command) !is null) {
+    Variable v = cast(Variable)command;
+    operandStack.push(getVariable(v.value));
+  } else if ((cast(VAssign)command) !is null) {
+    Variable var = cast(Variable)code[rpc++];
+    long     len = (cast(Integer)code[rpc++]).value;
+    StackValue[] value = code[rpc..rpc+len];
+    rpc += len;
+    Frame f =Frame(value, Stack!StackValue());
+    while (f.code.length != 0) {
+      f = execute(f);
+    }
+    StackValue v = f.operandStack.pop;
+    setVariable(var.value, v);
+    operandStack.push(v);
   }
 
   return Frame(code[rpc..$], operandStack);
@@ -306,6 +327,8 @@ Frame execute(Frame frame) {
 
 Integer integer(long value) { return new Integer(value); }
 Floating floating(double value) { return new Floating(value); }
+Variable variable(string value) { return new Variable(value); }
+VAssign vassign()          { return new VAssign; }
 BiPush bipush()            { return new BiPush; }
 IAdd iadd()                { return new IAdd; }
 ISub isub()                { return new ISub; }
